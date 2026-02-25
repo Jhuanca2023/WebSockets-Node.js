@@ -43,3 +43,46 @@ export const getRoomById = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: 'Error al obtener la sala', error });
     }
 };
+
+export const updateRoom = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { name, description, isPrivate } = req.body;
+        const hostId = req.user.id;
+
+        const room = await Room.findById(id);
+        if (!room) return res.status(404).json({ message: 'Sala no encontrada' });
+
+        if (room.hostId.toString() !== hostId) {
+            return res.status(403).json({ message: 'No tienes permisos para modificar esta sala' });
+        }
+
+        room.name = name || room.name;
+        room.description = description || room.description;
+        room.isPrivate = isPrivate !== undefined ? isPrivate : room.isPrivate;
+
+        await room.save();
+        res.json(room);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al actualizar la sala', error });
+    }
+};
+
+export const deleteRoom = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const hostId = req.user.id;
+
+        const room = await Room.findById(id);
+        if (!room) return res.status(404).json({ message: 'Sala no encontrada' });
+
+        if (room.hostId.toString() !== hostId) {
+            return res.status(403).json({ message: 'No tienes permisos para eliminar esta sala' });
+        }
+
+        await Room.findByIdAndDelete(id);
+        res.json({ message: 'Sala eliminada con éxito' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al eliminar la sala', error });
+    }
+};

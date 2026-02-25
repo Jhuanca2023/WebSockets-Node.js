@@ -52,11 +52,44 @@ export const login = async (req: Request, res: Response) => {
         );
 
         res.json({
-            user: { id: user._id, name: user.name, email: user.email, role: user.role },
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                profileImage: user.profileImage
+            },
             accessToken,
             refreshToken
         });
     } catch (error) {
         res.status(500).json({ message: 'Error en el servidor', error });
+    }
+};
+
+export const updateProfile = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as any;
+        const userId = authReq.user.id;
+        const { profileImage } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+        user.profileImage = profileImage;
+        await user.save();
+
+        res.json({
+            message: 'Perfil actualizado',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                profileImage: user.profileImage
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al actualizar perfil', error });
     }
 };
