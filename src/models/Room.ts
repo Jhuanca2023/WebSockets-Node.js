@@ -15,7 +15,7 @@ const RoomSchema: Schema = new Schema({
     description: { type: String },
     hostId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     isPrivate: { type: Boolean, default: false },
-    code: { type: String, unique: true },
+    code: { type: String, unique: true, sparse: true },
     maxUsers: { type: Number, default: 50 },
     createdAt: { type: Date, default: Date.now }
 });

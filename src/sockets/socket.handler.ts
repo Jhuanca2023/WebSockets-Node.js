@@ -13,92 +13,92 @@ const roomMembers = new Map<string, Map<string, any>>();
 export const socketHandler = (io: Server) => {
     io.use((socket: Socket, next) => {
         const token = socket.handshake.auth.token;
+        console.log(`🔒 Intento conexión: ${socket.id} | Token: ${token ? 'Sí' : 'No'}`);
         if (!token) return next(new Error('Authentication error: No token provided'));
 
         try {
             const decoded = jwt.verify(token, JWT_SECRET) as any;
             (socket as any).user = decoded;
+            console.log(`✅ Auth OK: ${decoded.id}`);
             next();
-        } catch (err) {
+        } catch (err: any) {
+            console.error('❌ Auth Fail:', err.message);
             next(new Error('Authentication error: Invalid token'));
         }
     });
 
     io.on('connection', (socket: Socket) => {
         const user = (socket as any).user;
+        console.log(`🔌 Conectado: ${socket.id} | User: ${user?.id}`);
+
+        // Logger para todos los eventos
+        socket.onAny((eventName, ...args) => {
+            console.log(`📡 [${socket.id}] Recibido: ${eventName}`, args);
+        });
+
         let currentRoomId = '';
 
         // Join Room
-        socket.on('join-room', async (data: { roomId: string, userName?: string, userAvatar?: string }) => {
-            const { roomId } = data;
-            let { userName, userAvatar } = data;
+        socket.on('join-room', async (data: any) => {
+            console.log('📡 Evento join-room recibido para sala:', data?.roomId);
+            if (!data || !data.roomId) return;
 
-            // Basic validation
-            if (!roomId) return;
+            try {
+                const roomId = String(data.roomId);
+                const { userName, userAvatar } = data;
+                socket.join(roomId);
+                currentRoomId = roomId;
 
-            // Ensure room exists
-            const roomExists = await Room.findById(roomId);
-            if (!roomExists) {
-                return socket.emit('error-msg', 'La sala no existe o ha sido eliminada');
-            }
-
-            currentRoomId = roomId;
-            socket.join(roomId);
-
-            // If metadata is missing, try to fetch from DB
-            if (!userName) {
-                const dbUser = await User.findById(user.id);
-                if (dbUser) {
-                    userName = dbUser.name;
-                    userAvatar = dbUser.profileImage;
+                if (!roomMembers.has(roomId)) {
+                    roomMembers.set(roomId, new Map());
                 }
+
+                roomMembers.get(roomId)?.set(socket.id, {
+                    userId: user.id,
+                    name: userName || 'Usuario',
+                    avatar: userAvatar,
+                    socketId: socket.id
+                });
+
+                // Notificar a todos
+                const members = Array.from(roomMembers.get(roomId)?.values() || []);
+                console.log(`👥 Emitiendo lista de miembros (${members.length}) a sala ${roomId}`);
+                io.to(roomId).emit('room-members', members);
+
+                io.to(roomId).emit('receive-message', {
+                    roomId,
+                    userId: 'system',
+                    userName: 'Sistema',
+                    content: `${userName || 'Alguien'} se unió`,
+                    createdAt: new Date()
+                });
+
+                console.log(`✅ ${userName} (${user.id}) unido a ${roomId}`);
+            } catch (err) {
+                console.error('❌ Error en join-room:', err);
             }
-
-            if (!roomMembers.has(roomId)) {
-                roomMembers.set(roomId, new Map());
-            }
-
-            // Sync user to room map
-            roomMembers.get(roomId)?.set(socket.id, {
-                userId: user.id,
-                name: userName || 'Usuario',
-                avatar: userAvatar,
-                socketId: socket.id
-            });
-
-            // Notify room of join (System message)
-            io.to(roomId).emit('receive-message', {
-                roomId,
-                userId: 'system',
-                userName: 'Sistema',
-                content: `${userName || 'Un usuario'} se ha unido a la conversación`,
-                createdAt: new Date()
-            });
-
-            // Broadcast updated member list
-            const memberList = Array.from(roomMembers.get(roomId)?.values() || []);
-            io.to(roomId).emit('room-members', memberList);
-
-            console.log(`🏠 Usuario ${userName} (${user.id}) se unió a ${roomId}`);
         });
 
         // Send Message
         socket.on('send-message', async (data: { roomId: string, content: string, userAvatar?: string }) => {
+            const roomId = String(data.roomId);
+            console.log(`✉️ Mensaje recibido de ${user.id} para sala ${roomId}: ${data.content}`);
             try {
                 // Find user info in our room map to include the name
-                const roomData = roomMembers.get(data.roomId);
+                const roomData = roomMembers.get(roomId);
                 const senderData = roomData?.get(socket.id);
 
                 const newMessage = new Message({
-                    roomId: data.roomId,
+                    roomId: roomId,
                     userId: user.id,
                     content: data.content
                 });
 
                 await newMessage.save();
+                console.log('💾 Mensaje guardado en DB');
 
                 const messageData = {
-                    roomId: data.roomId,
+                    roomId: roomId,
                     userId: user.id,
                     userName: senderData?.name || 'Usuario',
                     userAvatar: data.userAvatar || senderData?.avatar,
@@ -106,7 +106,8 @@ export const socketHandler = (io: Server) => {
                     createdAt: newMessage.createdAt
                 };
 
-                io.to(data.roomId).emit('receive-message', messageData);
+                console.log(`📡 Emitiendo mensaje a sala ${roomId}`);
+                io.to(roomId).emit('receive-message', messageData);
             } catch (error) {
                 console.error('Error al enviar mensaje:', error);
             }
@@ -141,15 +142,13 @@ export const socketHandler = (io: Server) => {
             }
         });
 
-        socket.on('disconnect', () => {
+        socket.on('disconnect', (reason) => {
             if (currentRoomId && roomMembers.has(currentRoomId)) {
                 roomMembers.get(currentRoomId)?.delete(socket.id);
-
-                // Re-broadcast updated list
                 const memberList = Array.from(roomMembers.get(currentRoomId)?.values() || []);
                 io.to(currentRoomId).emit('room-members', memberList);
             }
-            console.log(`❌ Usuario desconectado: ${socket.id}`);
+            console.log(`❌ Desconectado: ${socket.id} | Razón: ${reason}`);
         });
     });
 };

@@ -36,7 +36,7 @@ export const getRooms = async (req: AuthRequest, res: Response) => {
 
 export const getRoomById = async (req: AuthRequest, res: Response) => {
     try {
-        const room = await Room.findById(req.params.id).populate('hostId', 'name');
+        const room = await Room.findById(req.params.id).populate('hostId', '_id name profileImage');
         if (!room) return res.status(404).json({ message: 'Sala no encontrada' });
         res.json(room);
     } catch (error) {

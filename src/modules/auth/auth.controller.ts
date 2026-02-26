@@ -42,7 +42,7 @@ export const login = async (req: Request, res: Response) => {
         const accessToken = jwt.sign(
             { id: user._id, role: user.role },
             JWT_SECRET,
-            { expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as any }
+            { expiresIn: (process.env.JWT_EXPIRES_IN || '8h') as any }
         );
 
         const refreshToken = jwt.sign(

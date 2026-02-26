@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import http from 'http';
 import { Server } from 'socket.io';
 import app from './app';
@@ -10,8 +13,10 @@ const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
         origin: process.env.CLIENT_URL || 'http://localhost:4200',
-        methods: ['GET', 'POST']
-    }
+        methods: ['GET', 'POST'],
+        credentials: true
+    },
+    transports: ['websocket', 'polling']
 });
 
 // Initialize socket handler
@@ -25,3 +30,12 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Catch unhandled errors so the server doesn't silently crash
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🔴 UnhandledRejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('🔴 UncaughtException:', err);
+});
