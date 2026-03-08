@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './modules/auth/auth.routes';
 import roomRoutes from './modules/rooms/rooms.routes';
+import uploadRoutes from './modules/uploads/upload.routes';
+import path from 'path';
 
 dotenv.config();
 
@@ -19,6 +21,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/upload', uploadRoutes);
+
+// Static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get('/health', (req, res) => {

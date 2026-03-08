@@ -6,149 +6,205 @@ import User from '../models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
-// In-memory store for active room members
-// Map<roomId, Map<socketId, userData>>
+// Store room members in memory for easy access
 const roomMembers = new Map<string, Map<string, any>>();
 
 export const socketHandler = (io: Server) => {
-    io.use((socket: Socket, next) => {
-        const token = socket.handshake.auth.token;
-        console.log(`🔒 Intento conexión: ${socket.id} | Token: ${token ? 'Sí' : 'No'}`);
-        if (!token) return next(new Error('Authentication error: No token provided'));
+    console.log('Socket Handler: Expert Mode Enabled');
 
+    const sanitizeAvatar = (value?: string) => {
+        if (!value) return '';
+        if (value.startsWith('data:')) return '';
+        if (value.length > 2048) return '';
+        return value;
+    };
+
+    // Authentication Middleware
+    io.use(async (socket: Socket, next) => {
         try {
+            const token = socket.handshake.auth.token;
+            if (!token) return next(new Error('Auth failed: No token'));
+
             const decoded = jwt.verify(token, JWT_SECRET) as any;
-            (socket as any).user = decoded;
-            console.log(`✅ Auth OK: ${decoded.id}`);
+            if (!decoded || !decoded.id) return next(new Error('Auth failed: Invalid token'));
+
+            // Pre-fetch user name and avatar to avoid issues later
+            const fullUser = await User.findById(decoded.id).select('name email profileImage role').lean();
+            if (!fullUser) return next(new Error('Auth failed: User not found'));
+
+            (socket as any).user = {
+                id: String(fullUser._id),
+                name: fullUser.name,
+                role: fullUser.role || 'USER',
+                email: fullUser.email,
+                avatar: sanitizeAvatar(fullUser.profileImage || '')
+            };
+
+            console.log(`Authorized: ${(socket as any).user.name}`);
             next();
         } catch (err: any) {
-            console.error('❌ Auth Fail:', err.message);
-            next(new Error('Authentication error: Invalid token'));
+            console.error('Socket Auth:', err.message);
+            next(new Error('Authentication failed'));
         }
     });
 
     io.on('connection', (socket: Socket) => {
         const user = (socket as any).user;
-        console.log(`🔌 Conectado: ${socket.id} | User: ${user?.id}`);
+        console.log(`Connected: ${socket.id} (User: ${user.name})`);
+        console.log('Transport:', socket.conn.transport.name, '| Origin:', socket.handshake.headers.origin);
 
-        // Logger para todos los eventos
-        socket.onAny((eventName, ...args) => {
-            console.log(`📡 [${socket.id}] Recibido: ${eventName}`, args);
+        socket.conn.on('close', (reason: string, description: any) => {
+            console.log('Transport closed:', {
+                socketId: socket.id,
+                reason,
+                description
+            });
         });
 
         let currentRoomId = '';
 
         // Join Room
         socket.on('join-room', async (data: any) => {
-            console.log('📡 Evento join-room recibido para sala:', data?.roomId);
-            if (!data || !data.roomId) return;
-
             try {
+                console.log('join-room received:', data);
+                if (!data || !data.roomId) {
+                    console.log('Invalid data');
+                    return;
+                }
                 const roomId = String(data.roomId);
-                const { userName, userAvatar } = data;
+                console.log('Looking for room:', roomId);
+
+                const room = await Room.findById(roomId);
+                if (!room) {
+                    console.log('Room not found');
+                    return socket.emit('error-msg', 'La sala no existe');
+                }
+                console.log('Room found:', room.name, 'Parent:', room.parentRoomId);
+
+                // Security Check (ACL) only for sub-rooms:
+                // allow: host de la sub-sala, host de la sala padre, o usuarios autorizados
+                if (room.parentRoomId) {
+                    const authorizedUsers = room.authorizedUsers?.map((id: any) => String(id)) || [];
+                    const isSubRoomHost = String(room.hostId) === String(user.id);
+                    let isParentHost = false;
+
+                    if (room.parentRoomId) {
+                        const parent = await Room.findById(room.parentRoomId).select('hostId').lean();
+                        if (parent) {
+                            isParentHost = String(parent.hostId) === String(user.id);
+                        }
+                    }
+
+                    const isAuthorized = authorizedUsers.includes(user.id);
+                    if (!isSubRoomHost && !isParentHost && !isAuthorized) {
+                        console.log('Not authorized to join sub-room');
+                        socket.emit('access-denied', { message: 'Necesitas permisos para entrar a esta sub-sala' });
+                        return;
+                    }
+                }
+
+                console.log('Joining room:', roomId);
                 socket.join(roomId);
                 currentRoomId = roomId;
 
-                if (!roomMembers.has(roomId)) {
-                    roomMembers.set(roomId, new Map());
-                }
+                if (!roomMembers.has(roomId)) roomMembers.set(roomId, new Map());
 
-                roomMembers.get(roomId)?.set(socket.id, {
+                const userData = {
                     userId: user.id,
-                    name: userName || 'Usuario',
-                    avatar: userAvatar,
+                    name: user.name,
+                    avatar: user.avatar,
+                    email: user.email,
                     socketId: socket.id
-                });
+                };
+                roomMembers.get(roomId)?.set(socket.id, userData);
 
-                // Notificar a todos
+                // Broadcast member list
                 const members = Array.from(roomMembers.get(roomId)?.values() || []);
-                console.log(`👥 Emitiendo lista de miembros (${members.length}) a sala ${roomId}`);
                 io.to(roomId).emit('room-members', members);
 
+                // System notification
                 io.to(roomId).emit('receive-message', {
                     roomId,
                     userId: 'system',
                     userName: 'Sistema',
-                    content: `${userName || 'Alguien'} se unió`,
+                    content: `${userData.name} se unió`,
                     createdAt: new Date()
                 });
-
-                console.log(`✅ ${userName} (${user.id}) unido a ${roomId}`);
+                console.log('Joined room successfully');
             } catch (err) {
-                console.error('❌ Error en join-room:', err);
+                console.error('Error join-room:', err);
+                socket.disconnect();
             }
         });
 
         // Send Message
-        socket.on('send-message', async (data: { roomId: string, content: string, userAvatar?: string }) => {
-            const roomId = String(data.roomId);
-            console.log(`✉️ Mensaje recibido de ${user.id} para sala ${roomId}: ${data.content}`);
+        socket.on('send-message', async (data: any) => {
             try {
-                // Find user info in our room map to include the name
-                const roomData = roomMembers.get(roomId);
-                const senderData = roomData?.get(socket.id);
+                if (!data || !data.roomId || !data.content) return;
+                const roomId = String(data.roomId);
 
                 const newMessage = new Message({
-                    roomId: roomId,
+                    roomId,
                     userId: user.id,
-                    content: data.content
+                    userName: user.name,
+                    userAvatar: user.avatar,
+                    content: data.content,
+                    type: data.type || 'TEXT',
+                    fileUrl: data.fileUrl || null,
+                    recipientId: data.recipientId || null
                 });
 
                 await newMessage.save();
-                console.log('💾 Mensaje guardado en DB');
 
-                const messageData = {
-                    roomId: roomId,
-                    userId: user.id,
-                    userName: senderData?.name || 'Usuario',
-                    userAvatar: data.userAvatar || senderData?.avatar,
-                    content: data.content,
+                const emitData = {
+                    ...newMessage.toObject(),
+                    _id: newMessage._id,
                     createdAt: newMessage.createdAt
                 };
 
-                console.log(`📡 Emitiendo mensaje a sala ${roomId}`);
-                io.to(roomId).emit('receive-message', messageData);
-            } catch (error) {
-                console.error('Error al enviar mensaje:', error);
+                if (data.recipientId) {
+                    socket.emit('receive-message', emitData);
+                    const roomData = roomMembers.get(roomId);
+                    const target = Array.from(roomData?.values() || []).find(m => String(m.userId) === String(data.recipientId));
+                    if (target) io.to(target.socketId).emit('receive-message', emitData);
+                } else {
+                    io.to(roomId).emit('receive-message', emitData);
+                }
+            } catch (err) {
+                console.error('Error send-message:', err);
             }
         });
 
-        // Kick Member (Only Host)
-        socket.on('kick-member', async (data: { roomId: string, targetSocketId: string }) => {
+        // Send Reaction
+        socket.on('send-reaction', async (data: any) => {
             try {
-                const room = await Room.findById(data.roomId);
-                if (!room) return;
+                if (!data || !data.messageId) return;
+                const updated = await Message.findByIdAndUpdate(
+                    data.messageId,
+                    { $push: { reactions: { userId: user.id, emoji: data.emoji } } },
+                    { new: true }
+                );
 
-                // Verify if requester is host
-                if (room.hostId.toString() !== user.id) {
-                    return socket.emit('error-msg', 'No tienes permisos para expulsar a nadie');
-                }
-
-                // Disconnect target from room
-                const targetSocket = io.sockets.sockets.get(data.targetSocketId);
-                if (targetSocket) {
-                    targetSocket.leave(data.roomId);
-                    targetSocket.emit('kicked', { roomId: data.roomId });
-
-                    // Remove from our map
-                    roomMembers.get(data.roomId)?.delete(data.targetSocketId);
-
-                    // Re-broadcast list
-                    const memberList = Array.from(roomMembers.get(data.roomId)?.values() || []);
-                    io.to(data.roomId).emit('room-members', memberList);
+                if (updated) {
+                    io.to(data.roomId).emit('message-reaction', {
+                        messageId: data.messageId,
+                        roomId: data.roomId,
+                        userId: user.id,
+                        emoji: data.emoji
+                    });
                 }
             } catch (err) {
-                console.error('Error in kick-member:', err);
+                console.error('Error reaction:', err);
             }
         });
 
         socket.on('disconnect', (reason) => {
             if (currentRoomId && roomMembers.has(currentRoomId)) {
                 roomMembers.get(currentRoomId)?.delete(socket.id);
-                const memberList = Array.from(roomMembers.get(currentRoomId)?.values() || []);
-                io.to(currentRoomId).emit('room-members', memberList);
+                const members = Array.from(roomMembers.get(currentRoomId)?.values() || []);
+                io.to(currentRoomId).emit('room-members', members);
             }
-            console.log(`❌ Desconectado: ${socket.id} | Razón: ${reason}`);
+            console.log(`Disconnected ${socket.id}: ${reason}`);
         });
     });
 };
