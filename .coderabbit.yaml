@@ -1,19 +1,74 @@
-# CodeRabbit Free Version Configuration
+# CodeRabbit Configuration for Node.js Backend
+language: typescript
+framework: express
+
 reviews:
   enabled: true
   changed_files_only: true
+  auto_review:
+    enabled: true
+    drafts: false
+    
   path_filters:
     include:
       - "src/**/*.ts"
       - "package.json"
+      - "tsconfig.json"
+      - "nest-cli.json"
+      - "*.config.ts"
+      - "*.config.js"
     exclude:
       - "node_modules/**"
       - "dist/**"
       - ".git/**"
       - "uploads/**"
+      - "**/*.spec.ts"
+      - "test/**"
+      - "coverage/**"
+
   path_instructions: |
     Review Node.js/Express code for:
-    - TypeScript best practices
-    - Error handling
-    - Basic security checks
-    - Code quality issues
+    - TypeScript best practices and strict typing
+    - RESTful API design principles
+    - Error handling and logging strategies
+    - Security best practices (input validation, authentication, authorization)
+    - Database operations and query optimization
+    - Middleware implementation
+    - Async/await patterns and promise handling
+    - Environment configuration management
+    - Rate limiting and DDoS protection
+    - CORS configuration
+    - Dependency injection patterns
+    - Code organization and separation of concerns
+
+  # Specific rules for backend
+  rules:
+    - type: "security"
+      enabled: true
+      severity: "high"
+    - type: "performance"
+      enabled: true
+      severity: "high"
+    - type: "error_handling"
+      enabled: true
+      severity: "high"
+    - type: "api_design"
+      enabled: true
+      severity: "medium"
+
+# Chat instructions
+chat:
+  auto_reply: true
+  context_prompt: |
+    You are reviewing a Node.js/Express backend application.
+    Focus on security, performance, error handling, API design,
+    and backend best practices.
+
+# Summaries
+summaries:
+  enabled: true
+  types:
+    - "overview"
+    - "changes"
+    - "security_implications"
+    - "performance_impact"
