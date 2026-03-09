@@ -1,7 +1,8 @@
 import { Response } from 'express';
-import { AuthRequest } from '../../middlewares/auth';
+import { AuthRequest } from '../../middlewares/auth.middleware';
 import Room from '../../models/Room';
 import Message from '../../models/Message';
+import mongoose from 'mongoose';
 
 export const createRoom = async (req: AuthRequest, res: Response) => {
     try {
@@ -69,7 +70,7 @@ export const getRoomMessages = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        const messages = await Message.find({ roomId: id })
+        const messages = await Message.find({ roomId: new mongoose.Types.ObjectId(id) })
             .sort({ createdAt: 1 })
             .limit(500);
 
