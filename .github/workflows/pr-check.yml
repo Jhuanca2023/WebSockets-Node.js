@@ -1,0 +1,65 @@
+name: PR Checklist and Validation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - main
+      - dev
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Validate PR has description
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            if (!pr.body || pr.body.trim().length < 10) {
+              core.setFailed('PR must have a description with at least 10 characters');
+              return;
+            }
+            
+            console.log('PR has valid description');
+            
+      - name: Check for TODO comments
+        run: |
+          echo "Checking for TODO comments..."
+          if grep -r "TODO\|FIXME\|HACK" src/ --exclude-dir=node_modules; then
+            echo "Found TODO/FIXME/HACK comments. Please address them before merging."
+            exit 1
+          else
+            echo "No TODO/FIXME/HACK comments found"
+          fi
+          
+      - name: Run TypeScript compilation
+        run: npx tsc --noEmit
+        
+      - name: Security audit
+        run: npm audit --audit-level=moderate
+        
+      - name: Build application
+        run: npm run build

@@ -1,0 +1,19 @@
+# CodeRabbit Free Version Configuration
+reviews:
+  enabled: true
+  changed_files_only: true
+  path_filters:
+    include:
+      - "src/**/*.ts"
+      - "package.json"
+    exclude:
+      - "node_modules/**"
+      - "dist/**"
+      - ".git/**"
+      - "uploads/**"
+  path_instructions: |
+    Review Node.js/Express code for:
+    - TypeScript best practices
+    - Error handling
+    - Basic security checks
+    - Code quality issues

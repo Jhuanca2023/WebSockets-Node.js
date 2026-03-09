@@ -2,7 +2,7 @@
 
 Backend profesional en Node.js y TypeScript para el sistema de chat premium WebRocket. Utiliza Socket.IO para comunicación en tiempo real y MongoDB/Mongoose para la persistencia de datos.
 
-## 🚀 Tecnologías
+##  Tecnologías
 
 - **Node.js**: Entorno de ejecución.
 - **TypeScript**: Lenguaje de programación.
@@ -12,7 +12,7 @@ Backend profesional en Node.js y TypeScript para el sistema de chat premium WebR
 - **JWT**: Autenticación segura.
 - **Bcryptjs**: Encriptación de contraseñas.
 
-## 📦 Instalación
+##  Instalación
 
 1. Clona el repositorio:
    ```bash
@@ -34,10 +34,10 @@ Backend profesional en Node.js y TypeScript para el sistema de chat premium WebR
    npm run dev
    ```
 
-## 🔗 Frontend Relacionado
+##  Frontend Relacionado
 Puedes encontrar el frontend de este proyecto aquí: [WebSocket-Angular](https://github.com/Jhuanca2023/WebSocket-Angular)
 
-## 🛠️ Estructura del Proyecto
+##  Estructura del Proyecto
 - `src/index.ts`: Punto de entrada del servidor.
 - `src/config/`: Configuraciones de base de datos y variables.
 - `src/models/`: Definición de esquemas de Mongoose.

@@ -11,6 +11,7 @@ export interface IUser extends Document {
     password: string;
     role: UserRole;
     isBanned: boolean;
+    profileImage?: string;
     createdAt: Date;
 }
 
@@ -20,6 +21,7 @@ const UserSchema: Schema = new Schema({
     password: { type: String, required: true },
     role: { type: String, enum: Object.values(UserRole), default: UserRole.USER },
     isBanned: { type: Boolean, default: false },
+    profileImage: { type: String },
     createdAt: { type: Date, default: Date.now }
 });
 
