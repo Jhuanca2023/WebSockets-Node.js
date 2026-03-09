@@ -75,7 +75,7 @@ export const getRoomMessages = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        const messages = await Message.find({ roomId: new mongoose.Types.ObjectId(id) })
+        const messages = await Message.find({ roomId: new mongoose.Types.ObjectId(id as string) })
             .sort({ createdAt: 1 })
             .limit(500);
 
