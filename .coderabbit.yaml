@@ -5,16 +5,15 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-    
   path_filters:
-    include:
+    - include:
       - "src/**/*.ts"
       - "package.json"
       - "tsconfig.json"
       - "nest-cli.json"
       - "*.config.ts"
       - "*.config.js"
-    exclude:
+    - exclude:
       - "node_modules/**"
       - "dist/**"
       - ".git/**"
@@ -22,7 +21,6 @@ reviews:
       - "**/*.spec.ts"
       - "test/**"
       - "coverage/**"
-
   path_instructions: |
     Review Node.js/Express code for:
     - TypeScript best practices and strict typing
@@ -38,7 +36,6 @@ reviews:
     - Dependency injection patterns
     - Code organization and separation of concerns
 
-# Chat instructions
 chat:
   auto_reply: true
   context_prompt: |
