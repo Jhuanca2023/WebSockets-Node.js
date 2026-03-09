@@ -1,7 +1,4 @@
 # CodeRabbit Configuration for Node.js Backend
-language: typescript
-framework: express
-
 reviews:
   enabled: true
   changed_files_only: true
@@ -41,21 +38,6 @@ reviews:
     - Dependency injection patterns
     - Code organization and separation of concerns
 
-  # Specific rules for backend
-  rules:
-    - type: "security"
-      enabled: true
-      severity: "high"
-    - type: "performance"
-      enabled: true
-      severity: "high"
-    - type: "error_handling"
-      enabled: true
-      severity: "high"
-    - type: "api_design"
-      enabled: true
-      severity: "medium"
-
 # Chat instructions
 chat:
   auto_reply: true
@@ -63,12 +45,3 @@ chat:
     You are reviewing a Node.js/Express backend application.
     Focus on security, performance, error handling, API design,
     and backend best practices.
-
-# Summaries
-summaries:
-  enabled: true
-  types:
-    - "overview"
-    - "changes"
-    - "security_implications"
-    - "performance_impact"
