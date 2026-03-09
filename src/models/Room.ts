@@ -5,7 +5,7 @@ export interface IRoom extends Document {
     description: string;
     hostId: mongoose.Types.ObjectId;
     isPrivate: boolean;
-    code: string;
+    code?: string;
     maxUsers: number;
     imageUrl?: string;
     parentRoomId?: mongoose.Types.ObjectId;

@@ -1,38 +1,19 @@
 # CodeRabbit Free Version Configuration
-language: typescript
-framework: express
-
-# Enable AI code review (free tier)
 reviews:
   enabled: true
   changed_files_only: true
-
-# Include paths for analysis
-paths:
-  include:
-    - "src/**/*.ts"
-    - "package.json"
-  exclude:
-    - "node_modules/**"
-    - "dist/**"
-    - ".git/**"
-    - "uploads/**"
-
-# Basic rules for free tier
-rules:
-  typescript:
-    strict_types: true
-    unused_imports: true
-    console_logs: true
-  
-  nodejs:
-    error_handling: true
-    async_await: true
-
-# Simple instructions
-instructions: |
-  Review Node.js/Express code for:
-  - TypeScript best practices
-  - Error handling
-  - Basic security checks
-  - Code quality issues
+  path_filters:
+    include:
+      - "src/**/*.ts"
+      - "package.json"
+    exclude:
+      - "node_modules/**"
+      - "dist/**"
+      - ".git/**"
+      - "uploads/**"
+  path_instructions: |
+    Review Node.js/Express code for:
+    - TypeScript best practices
+    - Error handling
+    - Basic security checks
+    - Code quality issues
