@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthRequest } from '../../middlewares/auth.middleware';
+import { AuthRequest } from '../../middlewares/auth';
 import Room from '../../models/Room';
 import Message from '../../models/Message';
 import mongoose from 'mongoose';
