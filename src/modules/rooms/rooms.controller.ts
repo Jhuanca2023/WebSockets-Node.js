@@ -50,6 +50,11 @@ export const getRoomMessages = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const userId = req.user.id;
 
+        // Validate id is a string
+        if (!id || typeof id !== 'string') {
+            return res.status(400).json({ message: 'ID de sala inválido' });
+        }
+
         const room = await Room.findById(id);
         if (!room) return res.status(404).json({ message: 'Sala no encontrada' });
 
