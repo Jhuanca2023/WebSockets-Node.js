@@ -1,49 +1,19 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import User from '../models/User';
+import { Response, NextFunction } from 'express';
 import Room from '../models/Room';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
-
-export const authMiddleware = async (req: any, res: Response, next: NextFunction) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
-        return res.status(401).json({ message: 'No token, authorization denied' });
-    }
-
+import { AuthRequest, authMiddleware, adminMiddleware } from './auth';
+import { isResourceId } from '../modules/rooms/room-access';
+export { authMiddleware };
+export const isAdmin = adminMiddleware;
+export const isRoomHost = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!isResourceId(req.params.roomId)) return res.status(400).json({ message: 'ID de sala inválido' });
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
-        req.user = decoded;
-        next();
-    } catch (err) {
-        res.status(401).json({ message: 'Token is not valid' });
-    }
-};
-
-export const isAdmin = (req: any, res: Response, next: NextFunction) => {
-    if (req.user && req.user.role === 'ADMIN') {
-        next();
-    } else {
-        res.status(403).json({ message: 'Access denied: Requires Admin role' });
-    }
-};
-
-export const isRoomHost = async (req: any, res: Response, next: NextFunction) => {
-    try {
-        const { roomId } = req.params;
-        const room = await Room.findById(roomId);
-
-        if (!room) {
-            return res.status(404).json({ message: 'Room not found' });
+        const room = await Room.findById(req.params.roomId);
+        if (!room) return res.status(404).json({ message: 'Sala no encontrada' });
+        if (String(room.hostId) !== req.user?.id && req.user?.role !== 'ADMIN') {
+            return res.status(403).json({ message: 'No tienes permisos para administrar esta sala' });
         }
-
-        if (room.hostId.toString() === req.user.id || req.user.role === 'ADMIN') {
-            next();
-        } else {
-            res.status(403).json({ message: 'Access denied: Only the Host or Admin can perform this action' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: 'Server error in host validation' });
+        next();
+    } catch {
+        res.status(500).json({ message: 'Error al validar permisos' });
     }
 };

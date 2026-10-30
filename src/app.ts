@@ -2,8 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './modules/auth/auth.routes';
+import communityRoutes from './modules/rooms/community.routes';
 import roomRoutes from './modules/rooms/rooms.routes';
 import uploadRoutes from './modules/uploads/upload.routes';
+import invitationRoutes from './modules/invitations/invitations.routes';
 import path from 'path';
 
 dotenv.config();
@@ -20,7 +22,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/rooms', communityRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/invitations', invitationRoutes);
 app.use('/api/upload', uploadRoutes);
 
 // Static files

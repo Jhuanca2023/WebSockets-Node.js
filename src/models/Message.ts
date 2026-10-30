@@ -11,6 +11,7 @@ export interface IMessage extends Document {
     reactions: Array<{ userId: mongoose.Types.ObjectId, emoji: string }>;
     recipientId?: mongoose.Types.ObjectId;
     isEdited: boolean;
+    clientMessageId?: string;
     createdAt: Date;
 }
 
@@ -28,7 +29,14 @@ const MessageSchema: Schema = new Schema({
     }],
     recipientId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     isEdited: { type: Boolean, default: false },
+    clientMessageId: { type: String, maxlength: 80 },
     createdAt: { type: Date, default: Date.now }
 });
+
+MessageSchema.index({ userId: 1, clientMessageId: 1 }, {
+    unique: true,
+    partialFilterExpression: { clientMessageId: { $type: 'string' } }
+});
+MessageSchema.index({ roomId: 1, _id: -1 });
 
 export default mongoose.model<IMessage>('Message', MessageSchema);

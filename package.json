@@ -7,8 +7,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "lint": "echo 'No lint script configured - skipping'",
-    "test": "echo 'No tests configured - skipping'"
+    "lint": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.cjs",
+    "test:mongo": "npm run build && node --test tests/mongo.integration.cjs"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +33,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.3.0",
     "@types/socket.io": "^3.0.1",
+    "socket.io-client": "^4.8.4",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }

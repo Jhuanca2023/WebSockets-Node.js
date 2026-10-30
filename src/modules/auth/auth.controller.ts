@@ -3,8 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../../models/User';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_secret';
+import { JWT_SECRET, JWT_REFRESH_SECRET } from '../../config/security';
 
 export const register = async (req: Request, res: Response) => {
     try {
@@ -35,7 +34,7 @@ export const login = async (req: Request, res: Response) => {
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
+        if (!isMatch || user.isBanned) {
             return res.status(400).json({ message: 'Credenciales inválidas' });
         }
 
@@ -57,7 +56,7 @@ export const login = async (req: Request, res: Response) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                profileImage: user.profileImage
+                profileImage: user.profileImage, username: user.username, bio: user.bio, status: user.status, statusText: user.statusText, bannerColor: user.bannerColor, createdAt: user.createdAt
             },
             accessToken,
             refreshToken
@@ -76,6 +75,22 @@ export const updateProfile = async (req: Request, res: Response) => {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
+        const { name, username, bio, status, statusText, bannerColor } = req.body;
+        if ((name !== undefined && (typeof name !== 'string' || !name.trim() || name.length > 80)) ||
+            (username !== undefined && (typeof username !== 'string' || !/^[a-z0-9_]{3,24}$/i.test(username))) ||
+            (bio !== undefined && (typeof bio !== 'string' || bio.length > 400)) ||
+            (statusText !== undefined && (typeof statusText !== 'string' || statusText.length > 80)) ||
+            (status !== undefined && !['online', 'idle', 'dnd', 'invisible'].includes(status)) ||
+            (bannerColor !== undefined && (typeof bannerColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(bannerColor))) ||
+            (profileImage != null && (typeof profileImage !== 'string' || profileImage.length > 1500000 || !/^(https?:\/\/|data:image\/(png|jpeg|webp);base64,)/i.test(profileImage)))) {
+            return res.status(400).json({ message: 'Revisa los datos del perfil' });
+        }
+        if (name !== undefined) user.name = name.trim();
+        if (username !== undefined) user.username = username.toLowerCase();
+        if (bio !== undefined) user.bio = bio;
+        if (status !== undefined) user.status = status;
+        if (statusText !== undefined) user.statusText = statusText;
+        if (bannerColor !== undefined) user.bannerColor = bannerColor;
         // Only update profileImage if it's provided
         if (profileImage !== undefined) {
             user.profileImage = profileImage;
@@ -89,11 +104,11 @@ export const updateProfile = async (req: Request, res: Response) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                profileImage: user.profileImage
+                profileImage: user.profileImage, username: user.username, bio: user.bio, status: user.status, statusText: user.statusText, bannerColor: user.bannerColor, createdAt: user.createdAt
             }
         });
     } catch (error) {
-        console.error('Error updating profile:', error);
+        if ((error as any)?.code === 11000) return res.status(409).json({ message: 'Este nombre de usuario ya está en uso' });
         res.status(500).json({ message: 'Error al actualizar perfil' });
     }
 };

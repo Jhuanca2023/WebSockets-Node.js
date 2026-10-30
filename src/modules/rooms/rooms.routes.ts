@@ -1,12 +1,16 @@
 import { Router } from 'express';
 import { createRoom, getRooms, getRoomById, getRoomMessages, updateRoom, deleteRoom } from './rooms.controller';
 import { authMiddleware } from '../../middlewares/auth';
+import { createLink, revokeLink, sendInvitation } from '../invitations/invitations.controller';
 
 const router = Router();
 
 router.use(authMiddleware);
 
 router.post('/', createRoom);
+router.post('/:id/invite-links', createLink);
+router.delete('/:id/invite-links/:inviteId', revokeLink);
+router.post('/:id/invitations', sendInvitation);
 router.get('/', getRooms);
 router.get('/:id', getRoomById);
 router.get('/:id/messages', getRoomMessages);

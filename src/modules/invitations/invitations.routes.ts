@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { authMiddleware } from '../../middlewares/auth';
+import { inbox, previewLink, joinLink, acceptInvitation, declineInvitation } from './invitations.controller';
+const router = Router();
+router.use(authMiddleware);
+router.get('/', inbox);
+router.get('/preview/:token', previewLink);
+router.post('/join', joinLink);
+router.post('/:id/accept', acceptInvitation);
+router.post('/:id/decline', declineInvitation);
+export default router;
